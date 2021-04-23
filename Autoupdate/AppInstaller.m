@@ -548,7 +548,7 @@ static const NSTimeInterval SUDisplayProgressTimeDelay = 0.7;
             
             // Used later for relaunching
             // Compute this now before we set this installer property to nil
-            NSString *installationPath = [self.installer installationPath];
+            __unused NSString *installationPath = [self.installer installationPath];
             
             NSError *thirdStageError = nil;
             if (![self.installer performFinalInstallationProgressBlock:nil error:&thirdStageError]) {

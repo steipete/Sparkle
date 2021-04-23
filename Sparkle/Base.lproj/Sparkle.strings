@@ -14,31 +14,11 @@
 
 "%@ %@ is currently the newest version available.\n(You are currently running version %@.)" = "%1$@ %2$@ is currently the newest version available.\n(You are currently running version %3$@.)";
 
-/* An appcast feed error when checking for updates and no appcast items are retrieved */
-"No valid update information could be loaded." = "No valid update information could be loaded.";
-
-"An error occurred while running the updater. Please try again later." = "An error occurred while running the updater. Please try again later.";
-
-"An error occurred while starting the installer. Please try again later." = "An error occurred while starting the installer. Please try again later.";
-
-"An error occurred while connecting to the installer. Please try again later." = "An error occurred while connecting to the installer. Please try again later.";
-
-"An error occurred while launching the installer. Please try again later." = "An error occurred while launching the installer. Please try again later.";
-
-"Update Installed" = "Update Installed";
-
-"%@ is now updated to version %@!" = "%@ is now updated to version %@!";
-
-"%@ is now updated!" = "%@ is now updated!";
-
 /* Description text for SUUpdateAlert when the update is downloadable. */
 "%@ %@ is now available--you have %@. Would you like to download it now?" = "%1$@ %2$@ is now available—you have %3$@. Would you like to download it now?";
 
 /* Description text for SUUpdateAlert when the update informational with no download. */
 "%@ %@ is now available--you have %@. Would you like to learn more about this update on the web?" = "%1$@ %2$@ is now available—you have %3$@. Would you like to learn more about this update on the web?";
-
-/* Critical downloadable update */
-"%@ %@ is now available--you have %@. This is an important update; would you like to download it now?" = "%1$@ %2$@ is now available--you have %3$@. This is an important update; would you like to download it now?";
 
 "%@ downloaded" = "%@ downloaded";
 
@@ -57,10 +37,6 @@
 "An error occurred while installing the update. Please try again later." = "An error occurred while installing the update. Please try again later.";
 
 "An error occurred while parsing the update feed." = "An error occurred while parsing the update feed.";
-
-"An error occurred while downloading the update feed." = "An error occurred while downloading the update feed.";
-
-"Failed to resume installing update." = "Failed to resume installing update.";
 
 "An error occurred while relaunching %1$@, but the new version will be available next time you run %1$@." = "An error occurred while relaunching %1$@, but the new version will be available next time you run %1$@.";
 
@@ -85,8 +61,6 @@
 "GB" = "GB";
 
 "Install and Relaunch" = "Install and Relaunch";
-
-"Install on Quit" = "Install on Quit";
 
 /* Take care not to overflow the status window. */
 "Installing update..." = "Installing update…";
@@ -121,9 +95,3 @@
 
 /* Status message shown when the user checks for updates but is already current or the feed doesn't contain any updates. */
 "You're up-to-date!" = "You’re up to date!";
-
-/* Authorization message shown when app wants permission to update itself. */
-"%1$@ wants permission to update." = "%1$@ wants permission to update.";
-
-/* Authorization message shown when app wants permission to update another app / bundle. */
-"%1$@ wants permission to update %2$@." = "%1$@ wants permission to update %2$@.";

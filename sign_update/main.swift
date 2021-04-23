@@ -16,7 +16,7 @@ func findKeys() -> (Data, Data) {
         kSecAttrService as String: "https://sparkle-project.org",
         kSecAttrAccount as String: "ed25519",
         kSecAttrProtocol as String: kSecAttrProtocolSSH,
-        kSecReturnData as String: kCFBooleanTrue!,
+        kSecReturnData as String: kCFBooleanTrue!
         ] as CFDictionary, &item)
     if res == errSecSuccess, let encoded = item as? Data, let keys = Data(base64Encoded: encoded) {
         return (keys[0..<64], keys[64..<(64+32)])
@@ -39,9 +39,9 @@ func edSignature(data: Data, publicEdKey: Data, privateEdKey: Data) -> String {
     assert(publicEdKey.count == 32)
     assert(privateEdKey.count == 64)
     let data = Array(data)
-    var output = Array<UInt8>(repeating: 0, count: 64)
+    var output = [UInt8](repeating: 0, count: 64)
     let pubkey = Array(publicEdKey), privkey = Array(privateEdKey)
-    
+
     ed25519_sign(&output, data, data.count, pubkey, privkey)
     return Data(output).base64EncodedString()
 }

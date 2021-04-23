@@ -12,9 +12,9 @@ var verbose = false
 
 // Enum that contains keys for command-line arguments
 struct CommandLineArguments {
-    var privateDSAKey : SecKey?
-    var privateEdString : String?
-    var downloadURLPrefix : URL?
+    var privateDSAKey: SecKey?
+    var privateEdString: String?
+    var downloadURLPrefix: URL?
     var releaseNotesURLPrefix: URL?
     var outputPathURL: URL?
     var archivesSourceDir: URL?
@@ -33,21 +33,21 @@ Usage: \(command) [OPTIONS] [ARCHIVES_FOLDER]
     -k: provide the name of the keychain. This option must be used with `-n`
     -s: provide the private EdDSA key (128 characters)
     -o: provide a filename for the generated appcast (allowed when only one will be created)
-    
+
     --download-url-prefix: provide a prefix used to construct URLs for update downloads
     --release-notes-url-prefix: provide a prefix used to construct URLs for release notes
-    
+
 Examples:
     \(command) ./my-app-release-zipfiles/
     \(command) -o appcast-name.xml ./my-app-release-zipfiles/
-    
+
     \(command) dsa_priv.pem ./my-app-release-zipfiles/ [DEPRECATED]
 
 Appcast files and deltas will be written to the archives directory.
 Note that pkg-based updates are not supported.
 
 """
-    
+
     print(usage)
 }
 
@@ -72,7 +72,7 @@ func loadPrivateKeys(_ privateDSAKey: SecKey?, _ privateEdString: String?) -> Pr
             kSecAttrService as String: "https://sparkle-project.org",
             kSecAttrAccount as String: "ed25519",
             kSecAttrProtocol as String: kSecAttrProtocolSSH,
-            kSecReturnData as String: kCFBooleanTrue!,
+            kSecReturnData as String: kCFBooleanTrue!
         ] as CFDictionary, &item)
         if res == errSecSuccess, let encoded = item as? Data, let data = Data(base64Encoded: encoded) {
             keys = data
@@ -93,7 +93,7 @@ func loadPrivateKeys(_ privateDSAKey: SecKey?, _ privateEdString: String?) -> Pr
  */
 func parseCommandLineOptions() -> CommandLineArguments {
     var arguments = CommandLine.arguments
-    
+
     // If there are fewer than two arguments (the name of the application +
     // the required archive directory), or if `-h` is in the argument list,
     // then show the usage message
@@ -101,7 +101,7 @@ func parseCommandLineOptions() -> CommandLineArguments {
         printUsage()
         exit(1)
     }
-    
+
     // Remove the first element since this is the path to executable which we don't need
     arguments.removeFirst()
 
@@ -186,22 +186,22 @@ func parseCommandLineOptions() -> CommandLineArguments {
         arguments.remove(at: downloadUrlPrefixOptionIndex + 1)
         arguments.remove(at: downloadUrlPrefixOptionIndex)
     }
-    
+
     // Check if a URL prefix was specified for the release notes
     if let releaseNotesURLPrefixOptionIndex = arguments.firstIndex(of: "--release-notes-url-prefix") {
         if releaseNotesURLPrefixOptionIndex + 1 >= arguments.count {
             print("Too few arguments were given")
             exit(1)
         }
-        
+
         // Get the URL prefix for the release notes
         commandLineArguments.releaseNotesURLPrefix = URL(string: arguments[releaseNotesURLPrefixOptionIndex + 1])
-        
+
         // Remove the parsed argument
         arguments.remove(at: releaseNotesURLPrefixOptionIndex + 1)
         arguments.remove(at: releaseNotesURLPrefixOptionIndex)
     }
-    
+
     // Check if an output filename was specified
     if let outputFilenameOptionIndex = arguments.firstIndex(of: "-o") {
         // check that when accessing the value of the option we don't get out of bounds
@@ -209,10 +209,10 @@ func parseCommandLineOptions() -> CommandLineArguments {
             print("Too few arguments were given")
             exit(1)
         }
-        
+
         // Get the URL prefix for the release notes
         commandLineArguments.outputPathURL = URL(fileURLWithPath: arguments[outputFilenameOptionIndex + 1])
-        
+
         // Remove the parsed argument
         arguments.remove(at: outputFilenameOptionIndex + 1)
         arguments.remove(at: outputFilenameOptionIndex)
@@ -240,7 +240,7 @@ func parseCommandLineOptions() -> CommandLineArguments {
         commandLineArguments.archivesSourceDir = URL(fileURLWithPath: archivesSourceDir, isDirectory: true)
     } else {
         print("Archive folder must be specified")
-        exit(1);
+        exit(1)
     }
 
     return commandLineArguments
@@ -249,14 +249,14 @@ func parseCommandLineOptions() -> CommandLineArguments {
 func main() {
     // Parse the command line arguments
     let args = parseCommandLineOptions()
-    
+
     // If parsing the command line options was successful, then
     // the archivesSourceDir must exist
     let archivesSourceDir = args.archivesSourceDir!
-    
+
     // Extract the keys
     let keys = loadPrivateKeys(args.privateDSAKey, args.privateEdString)
-    
+
     do {
         let allUpdates = try makeAppcast(archivesSourceDir: archivesSourceDir, keys: keys, verbose: verbose)
 
@@ -279,18 +279,18 @@ func main() {
         if let outputPathURL = args.outputPathURL,
             allUpdates.count > 1 {
             print("Cannot write to \(outputPathURL.path): multiple appcasts found")
-            exit(1);
+            exit(1)
         }
-        
+
         for (appcastFile, updates) in allUpdates {
             // If an output filename was specified, use it.
             // Otherwise, use the name of the appcast file found in the archive.
             let appcastDestPath = args.outputPathURL ?? URL(fileURLWithPath: appcastFile,
                                                             relativeTo: archivesSourceDir)
-            
+
             // Write the appcast
             try writeAppcast(appcastDestPath: appcastDestPath, updates: updates)
-            
+
             // Inform the user, pluralizing "update" if necessary
             let updateString = (updates.count == 1) ? "update" : "updates"
             print("Wrote \(updates.count) \(updateString) to: \(appcastDestPath.path)")

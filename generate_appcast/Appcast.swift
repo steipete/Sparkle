@@ -10,7 +10,7 @@ let maxDeltas = 5
 
 func makeError(code: SUError, _ description: String) -> NSError {
     return NSError(domain: SUSparkleErrorDomain, code: Int(OSStatus(code.rawValue)), userInfo: [
-        NSLocalizedDescriptionKey: description,
+        NSLocalizedDescriptionKey: description
         ])
 }
 

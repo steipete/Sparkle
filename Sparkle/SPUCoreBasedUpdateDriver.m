@@ -102,7 +102,7 @@
         // Otherwise check if we have sufficient privileges to update without interaction
         [self.installerDriver checkIfApplicationInstallationRequiresAuthorizationWithReply:^(BOOL requiresAuthorization) {
             if (requiresAuthorization) {
-                reply([NSError errorWithDomain:SUSparkleErrorDomain code:SUNotAllowedInteractionError userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"No new update has been checked because the installation will require interaction, which has been prevented."] }]);
+                reply([NSError errorWithDomain:SUSparkleErrorDomain code:SUNotAllowedInteractionError userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:SULocalizedString(@"No new update has been checked because the installation will require interaction, which has been prevented.", nil)] }]);
             } else {
                 reply(nil);
             }
@@ -161,7 +161,7 @@
             // Package type installations will always require installer interaction as long as we don't support running as root
             // If it's not a package type installation, we should be okay since we did an auth check before checking for updates above
             if (![updateItem.installationType isEqualToString:SPUInstallationTypeApplication]) {
-                [self.delegate coreDriverIsRequestingAbortUpdateWithError:[NSError errorWithDomain:SUSparkleErrorDomain code:SUNotAllowedInteractionError userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:@"A new update is available but cannot be installed because interaction has been prevented."] }]];
+                [self.delegate coreDriverIsRequestingAbortUpdateWithError:[NSError errorWithDomain:SUSparkleErrorDomain code:SUNotAllowedInteractionError userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:SULocalizedString(@"A new update is available but cannot be installed because interaction has been prevented.", nil)] }]];
             } else {
                 [self.delegate basicDriverDidFindUpdateWithAppcastItem:updateItem preventsAutoupdate:preventsAutoupdate];
             }
@@ -297,14 +297,16 @@
     [self.delegate installerDidFinishPreparationAndWillInstallImmediately:willInstallImmediately silently:willInstallSilently];
 }
 
-- (void)finishInstallationWithResponse:(SPUUserUpdateChoice)response displayingUserInterface:(BOOL)displayingUserInterface
+- (void)finishInstallationWithResponse:(SPUInstallUpdateStatus)installUpdateStatus displayingUserInterface:(BOOL)displayingUserInterface
 {
-    switch (response) {
-        case SPUUserUpdateChoiceDismiss:
-        case SPUUserUpdateChoiceSkip:
+    switch (installUpdateStatus) {
+        case SPUDismissUpdateInstallation:
             [self.delegate coreDriverIsRequestingAbortUpdateWithError:nil];
             break;
-        case SPUUserUpdateChoiceInstall:
+        case SPUInstallUpdateNow:
+            [self.installerDriver installWithToolAndRelaunch:NO displayingUserInterface:displayingUserInterface];
+            break;
+        case SPUInstallAndRelaunchUpdateNow:
             [self.installerDriver installWithToolAndRelaunch:YES displayingUserInterface:displayingUserInterface];
             break;
     }
@@ -324,10 +326,10 @@
     }
 }
 
-- (void)installerDidFinishInstallationAndRelaunched:(BOOL)relaunched acknowledgement:(void(^)(void))acknowledgement
+- (void)installerDidFinishInstallationWithAcknowledgement:(void(^)(void))acknowledgement
 {
-    if ([self.delegate respondsToSelector:@selector(installerDidFinishInstallationAndRelaunched:acknowledgement:)]) {
-        [self.delegate installerDidFinishInstallationAndRelaunched:relaunched acknowledgement:acknowledgement];
+    if ([self.delegate respondsToSelector:@selector(installerDidFinishInstallationWithAcknowledgement:)]) {
+        [self.delegate installerDidFinishInstallationWithAcknowledgement:acknowledgement];
     } else {
         acknowledgement();
     }

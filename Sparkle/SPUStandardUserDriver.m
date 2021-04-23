@@ -7,6 +7,7 @@
 //
 
 #import "SPUStandardUserDriver.h"
+#import "SPUUserDriverCoreComponent.h"
 #import "SPUStandardUserDriverDelegate.h"
 #import "SUAppcastItem.h"
 #import "SUVersionDisplayProtocol.h"
@@ -21,15 +22,9 @@
 @interface SPUStandardUserDriver ()
 
 @property (nonatomic, readonly) SUHost *host;
-// We must store the oldHostName before the host is potentially replaced
-// because we may use this property after update has been installed
-@property (nonatomic, readonly) NSString *oldHostName;
-@property (nonatomic, readonly) NSURL *oldHostBundleURL;
 
+@property (nonatomic, readonly) SPUUserDriverCoreComponent *coreComponent;
 @property (nonatomic, weak, nullable, readonly) id <SPUStandardUserDriverDelegate> delegate;
-
-@property (nonatomic, copy) void (^installUpdateHandler)(SPUUserUpdateChoice);
-@property (nonatomic, copy) void (^cancellation)(void);
 
 @property (nonatomic) SUStatusController *checkingController;
 @property (nonatomic) SUUpdateAlert *activeUpdateAlert;
@@ -41,10 +36,7 @@
 @implementation SPUStandardUserDriver
 
 @synthesize host = _host;
-@synthesize oldHostName = _oldHostName;
-@synthesize oldHostBundleURL = _oldHostBundleURL;
-@synthesize installUpdateHandler = _installUpdateHandler;
-@synthesize cancellation = _cancellation;
+@synthesize coreComponent = _coreComponent;
 @synthesize delegate = _delegate;
 @synthesize checkingController = _checkingController;
 @synthesize activeUpdateAlert = _activeUpdateAlert;
@@ -58,11 +50,17 @@
     self = [super init];
     if (self != nil) {
         _host = [[SUHost alloc] initWithBundle:hostBundle];
-        _oldHostName = _host.name;
-        _oldHostBundleURL = hostBundle.bundleURL;
         _delegate = delegate;
+        _coreComponent = [[SPUUserDriverCoreComponent alloc] init];
     }
     return self;
+}
+
+#pragma mark Is Update Busy?
+
+- (void)showCanCheckForUpdates:(BOOL)canCheckForUpdates
+{
+    assert(NSThread.isMainThread);
 }
 
 #pragma mark Update Permission
@@ -100,8 +98,10 @@
     
     // Only show the update alert if the app is active; otherwise, we'll wait until it is.
     if ([NSApp isActive]) {
-        [self.activeUpdateAlert setInstallButtonFocus:userInitiated];
-        [self.activeUpdateAlert showWindow:nil];
+        if (!userInitiated) {
+            [self.activeUpdateAlert disableKeyboardShortcutForInstallButton];
+        }
+        [self.activeUpdateAlert.window makeKeyAndOrderFront:self];
     } else {
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(applicationDidBecomeActive:) name:NSApplicationDidBecomeActiveNotification object:NSApp];
     }
@@ -109,30 +109,72 @@
 
 - (void)applicationDidBecomeActive:(NSNotification *)__unused aNotification
 {
-    [self.activeUpdateAlert showWindow:nil];
+    [self.activeUpdateAlert.window makeKeyAndOrderFront:self];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:NSApplicationDidBecomeActiveNotification object:NSApp];
 }
 
 #pragma mark Update Found
 
-- (void)showUpdateFoundWithAppcastItem:(SUAppcastItem *)appcastItem userInitiated:(BOOL)userInitiated state:(SPUUserUpdateState)state reply:(void (^)(SPUUserUpdateChoice))reply
+- (void)showUpdateFoundWithAlertHandler:(SUUpdateAlert *(^)(SPUStandardUserDriver *, SUHost *, id<SUVersionDisplay>))alertHandler userInitiated:(BOOL)userInitiated
 {
-    assert(NSThread.isMainThread);
-    
-    [self closeCheckingWindow];
-    
     id <SUVersionDisplay> versionDisplayer = nil;
     if ([self.delegate respondsToSelector:@selector(standardUserDriverRequestsVersionDisplayer)]) {
         versionDisplayer = [self.delegate standardUserDriverRequestsVersionDisplayer];
     }
     
     __weak SPUStandardUserDriver *weakSelf = self;
-    self.activeUpdateAlert = [[SUUpdateAlert alloc] initWithAppcastItem:appcastItem state:state host:self.host versionDisplayer:versionDisplayer completionBlock:^(SPUUserUpdateChoice choice) {
-        reply(choice);
-        weakSelf.activeUpdateAlert = nil;
-    }];
+    SUHost *host = self.host;
+    self.activeUpdateAlert = alertHandler(weakSelf, host, versionDisplayer);
     
     [self setUpFocusForActiveUpdateAlertWithUserInitiation:userInitiated];
+}
+
+- (void)showUpdateFoundWithAppcastItem:(SUAppcastItem *)appcastItem userInitiated:(BOOL)userInitiated reply:(void (^)(SPUUpdateAlertChoice))reply
+{
+    assert(NSThread.isMainThread);
+    
+    [self showUpdateFoundWithAlertHandler:^SUUpdateAlert *(SPUStandardUserDriver *weakSelf, SUHost *host, id<SUVersionDisplay> versionDisplayer) {
+        return [[SUUpdateAlert alloc] initWithAppcastItem:appcastItem alreadyDownloaded:NO host:host versionDisplayer:versionDisplayer completionBlock:^(SPUUpdateAlertChoice choice) {
+            reply(choice);
+            weakSelf.activeUpdateAlert = nil;
+        }];
+    } userInitiated:userInitiated];
+}
+
+- (void)showDownloadedUpdateFoundWithAppcastItem:(SUAppcastItem *)appcastItem userInitiated:(BOOL)userInitiated reply:(void (^)(SPUUpdateAlertChoice))reply
+{
+    assert(NSThread.isMainThread);
+    
+    [self showUpdateFoundWithAlertHandler:^SUUpdateAlert *(SPUStandardUserDriver *weakSelf, SUHost *host, id<SUVersionDisplay> versionDisplayer) {
+        return [[SUUpdateAlert alloc] initWithAppcastItem:appcastItem alreadyDownloaded:YES host:host versionDisplayer:versionDisplayer completionBlock:^(SPUUpdateAlertChoice choice) {
+            reply(choice);
+            weakSelf.activeUpdateAlert = nil;
+        }];
+    } userInitiated:userInitiated];
+}
+
+- (void)showResumableUpdateFoundWithAppcastItem:(SUAppcastItem *)appcastItem userInitiated:(BOOL)userInitiated reply:(void (^)(SPUInstallUpdateStatus))reply
+{
+    assert(NSThread.isMainThread);
+    
+    [self showUpdateFoundWithAlertHandler:^SUUpdateAlert *(SPUStandardUserDriver *weakSelf, SUHost *host, id<SUVersionDisplay> versionDisplayer) {
+        return [[SUUpdateAlert alloc] initWithAppcastItem:appcastItem host:host versionDisplayer:versionDisplayer resumableCompletionBlock:^(SPUInstallUpdateStatus choice) {
+            reply(choice);
+            weakSelf.activeUpdateAlert = nil;
+        }];
+    } userInitiated:userInitiated];
+}
+
+- (void)showInformationalUpdateFoundWithAppcastItem:(SUAppcastItem *)appcastItem userInitiated:(BOOL)userInitiated reply:(void (^)(SPUInformationalUpdateAlertChoice))reply
+{
+    assert(NSThread.isMainThread);
+    
+    [self showUpdateFoundWithAlertHandler:^SUUpdateAlert *(SPUStandardUserDriver *weakSelf, SUHost *host, id<SUVersionDisplay> versionDisplayer) {
+        return [[SUUpdateAlert alloc] initWithAppcastItem:appcastItem host:host versionDisplayer:versionDisplayer informationalCompletionBlock:^(SPUInformationalUpdateAlertChoice choice) {
+            reply(choice);
+            weakSelf.activeUpdateAlert = nil;
+        }];
+    } userInitiated:userInitiated];
 }
 
 - (void)showUpdateReleaseNotesWithDownloadData:(SPUDownloadData *)downloadData
@@ -152,50 +194,34 @@
     [self.activeUpdateAlert showReleaseNotesFailedToDownload];
 }
 
-- (void)showUpdateInFocus
-{
-    if (self.activeUpdateAlert != nil) {
-        [self setUpFocusForActiveUpdateAlertWithUserInitiation:YES];
-    } else if (self.permissionPrompt != nil) {
-        [self.permissionPrompt showWindow:nil];
-    } else if (self.statusController != nil) {
-        [self.statusController showWindow:nil];
-    }
-}
-
 #pragma mark Install & Relaunch Update
 
-- (void)showReadyToInstallAndRelaunch:(void (^)(SPUUserUpdateChoice))installUpdateHandler
+- (void)showReadyToInstallAndRelaunch:(void (^)(SPUInstallUpdateStatus))installUpdateHandler
 {
     assert(NSThread.isMainThread);
-    
-    [self createAndShowStatusController];
     
     [self.statusController beginActionWithTitle:SULocalizedString(@"Ready to Install", nil) maxProgressValue:1.0 statusText:nil];
     [self.statusController setProgressValue:1.0]; // Fill the bar.
     [self.statusController setButtonEnabled:YES];
     [self.statusController setButtonTitle:SULocalizedString(@"Install and Relaunch", nil) target:self action:@selector(installAndRestart:) isDefault:YES];
-    
+    [[self.statusController window] makeKeyAndOrderFront:self];
     [NSApp requestUserAttention:NSInformationalRequest];
     
-    self.installUpdateHandler = installUpdateHandler;
+    [self.coreComponent registerInstallUpdateHandler:installUpdateHandler];
 }
 
 - (void)installAndRestart:(id)__unused sender
 {
-    if (self.installUpdateHandler != nil) {
-        self.installUpdateHandler(SPUUserUpdateChoiceInstall);
-        self.installUpdateHandler = nil;
-    }
+    [self.coreComponent installUpdateWithChoice:SPUInstallAndRelaunchUpdateNow];
 }
 
 #pragma mark Check for Updates
 
-- (void)showUserInitiatedUpdateCheckWithCancellation:(void (^)(void))cancellation
+- (void)showUserInitiatedUpdateCheckWithCompletion:(void (^)(SPUUserInitiatedCheckStatus))updateCheckStatusCompletion
 {
     assert(NSThread.isMainThread);
     
-    self.cancellation = cancellation;
+    [self.coreComponent registerUpdateCheckStatusHandler:updateCheckStatusCompletion];
     
     self.checkingController = [[SUStatusController alloc] initWithHost:self.host];
     [[self.checkingController window] center]; // Force the checking controller to load its window.
@@ -215,18 +241,22 @@
 {
     if (self.checkingController != nil)
     {
-        [self.checkingController close];
+        [[self.checkingController window] close];
         self.checkingController = nil;
-        self.cancellation = nil;
     }
 }
 
 - (void)cancelCheckForUpdates:(id)__unused sender
 {
-    if (self.cancellation != nil) {
-        self.cancellation();
-        self.cancellation = nil;
-    }
+    [self.coreComponent cancelUpdateCheckStatus];
+    [self closeCheckingWindow];
+}
+
+- (void)dismissUserInitiatedUpdateCheck
+{
+    assert(NSThread.isMainThread);
+    
+    [self.coreComponent completeUpdateCheckStatus];
     [self closeCheckingWindow];
 }
 
@@ -236,10 +266,7 @@
 {
     assert(NSThread.isMainThread);
     
-    [self closeCheckingWindow];
-    
-    [self.statusController close];
-    self.statusController = nil;
+    [self.coreComponent registerAcknowledgement:acknowledgement];
     
     NSAlert *alert = [[NSAlert alloc] init];
     alert.messageText = SULocalizedString(@"Update Error!", nil);
@@ -247,20 +274,20 @@
     [alert addButtonWithTitle:SULocalizedString(@"Cancel Update", nil)];
     [self showAlert:alert];
     
-    acknowledgement();
+    [self.coreComponent acceptAcknowledgement];
 }
 
 - (void)showUpdateNotFoundWithError:(NSError *)error acknowledgement:(void (^)(void))acknowledgement
 {
     assert(NSThread.isMainThread);
     
-    [self closeCheckingWindow];
+    [self.coreComponent registerAcknowledgement:acknowledgement];
     
     NSAlert *alert = [NSAlert alertWithError:error];
     alert.alertStyle = NSAlertStyleInformational;
     [self showAlert:alert];
     
-    acknowledgement();
+    [self.coreComponent acceptAcknowledgement];
 }
 
 - (void)showAlert:(NSAlert *)alert
@@ -285,7 +312,7 @@
 
 #pragma mark Download & Install Updates
 
-- (void)createAndShowStatusController
+- (void)showStatusController
 {
     if (self.statusController == nil) {
         self.statusController = [[SUStatusController alloc] initWithHost:self.host];
@@ -293,23 +320,20 @@
     }
 }
 
-- (void)showDownloadInitiatedWithCancellation:(void (^)(void))cancellation
+- (void)showDownloadInitiatedWithCompletion:(void (^)(SPUDownloadUpdateStatus))downloadUpdateStatusCompletion
 {
     assert(NSThread.isMainThread);
     
-    self.cancellation = cancellation;
+    [self.coreComponent registerDownloadStatusHandler:downloadUpdateStatusCompletion];
     
-    [self createAndShowStatusController];
+    [self showStatusController];
     [self.statusController beginActionWithTitle:SULocalizedString(@"Downloading update...", @"Take care not to overflow the status window.") maxProgressValue:0.0 statusText:nil];
     [self.statusController setButtonTitle:SULocalizedString(@"Cancel", nil) target:self action:@selector(cancelDownload:) isDefault:NO];
 }
 
 - (void)cancelDownload:(id)__unused sender
 {
-    if (self.cancellation != nil) {
-        self.cancellation();
-        self.cancellation = nil;
-    }
+    [self.coreComponent cancelDownloadStatus];
 }
 
 - (void)showDownloadDidReceiveExpectedContentLength:(uint64_t)expectedContentLength
@@ -371,9 +395,9 @@
 {
     assert(NSThread.isMainThread);
     
-    self.cancellation = nil;
+    [self.coreComponent completeDownloadStatus];
     
-    [self createAndShowStatusController];
+    [self showStatusController];
     [self.statusController beginActionWithTitle:SULocalizedString(@"Extracting update...", @"Take care not to overflow the status window.") maxProgressValue:0.0 statusText:nil];
     [self.statusController setButtonTitle:SULocalizedString(@"Cancel", nil) target:nil action:nil isDefault:NO];
     [self.statusController setButtonEnabled:NO];
@@ -397,43 +421,13 @@
     [self.statusController setButtonEnabled:NO];
 }
 
-- (void)showUpdateInstalledAndRelaunched:(BOOL)relaunched acknowledgement:(void (^)(void))acknowledgement
+- (void)showUpdateInstallationDidFinishWithAcknowledgement:(void (^)(void))acknowledgement
 {
     assert(NSThread.isMainThread);
     
-    // Close window showing update is installing
-    [self.statusController close];
-    self.statusController = nil;
-    
-    // Only show installed prompt when the app is not relaunched
-    // When the app is relaunched, there is enough of a UI from relaunching the app.
-    if (!relaunched) {
-        NSAlert *alert = [[NSAlert alloc] init];
-        alert.messageText = SULocalizedString(@"Update Installed", nil);
-        
-        // Extract information from newly updated bundle if available
-        NSString *hostName;
-        NSString *hostVersion;
-        NSBundle *newBundle = [NSBundle bundleWithURL:self.oldHostBundleURL];
-        if (newBundle != nil) {
-            SUHost *newHost = [[SUHost alloc] initWithBundle:newBundle];
-            hostName = newHost.name;
-            hostVersion = newHost.displayVersion;
-        } else {
-            // This may happen if Sparkle's normalization is enabled
-            hostName = self.oldHostName;
-            hostVersion = nil;
-        }
-        
-        if (hostVersion != nil) {
-            alert.informativeText = [NSString stringWithFormat:SULocalizedString(@"%@ is now updated to version %@!", nil), hostName, hostVersion];
-        } else {
-            alert.informativeText = [NSString stringWithFormat:SULocalizedString(@"%@ is now updated!", nil), hostName];
-        }
-        [self showAlert:alert];
-    }
-    
-    acknowledgement();
+    // Deciding not to show anything here
+    [self.coreComponent registerAcknowledgement:acknowledgement];
+    [self.coreComponent acceptAcknowledgement];
 }
 
 #pragma mark Aborting Everything
@@ -453,8 +447,7 @@
 {
     assert(NSThread.isMainThread);
     
-    self.installUpdateHandler = nil;
-    self.cancellation = nil;
+    [self.coreComponent dismissUpdateInstallation];
     
     [self closeCheckingWindow];
     

@@ -142,22 +142,22 @@
     }
 }
 
-- (void)notifyFoundValidUpdateWithAppcastItem:(SUAppcastItem *)updateItem preventsAutoupdate:(BOOL)preventsAutoupdate systemDomain:(NSNumber * _Nullable)systemDomain
+- (void)notifyFoundValidUpdateWithAppcastItem:(nullable SUAppcastItem *)updateItem preventsAutoupdate:(BOOL)preventsAutoupdate systemDomain:(NSNumber * _Nullable)systemDomain
 {
     if (!self.aborted) {
         [[NSNotificationCenter defaultCenter] postNotificationName:SUUpdaterDidFindValidUpdateNotification
                                                             object:self.updater
-                                                          userInfo:@{ SUUpdaterAppcastItemNotificationKey: updateItem }];
+                                                          userInfo:@{ SUUpdaterAppcastItemNotificationKey: (id)updateItem }];
         
         if ([self.updaterDelegate respondsToSelector:@selector((updater:didFindValidUpdate:))]) {
-            [self.updaterDelegate updater:self.updater didFindValidUpdate:updateItem];
+            [self.updaterDelegate updater:self.updater didFindValidUpdate:(id)updateItem];
         }
         
-        [self.delegate basicDriverDidFindUpdateWithAppcastItem:updateItem preventsAutoupdate:preventsAutoupdate systemDomain:systemDomain];
+        [self.delegate basicDriverDidFindUpdateWithAppcastItem:(id)updateItem preventsAutoupdate:preventsAutoupdate systemDomain:systemDomain];
     }
 }
 
-- (void)didFindValidUpdateWithAppcastItem:(SUAppcastItem *)updateItem preventsAutoupdate:(BOOL)preventsAutoupdate
+- (void)didFindValidUpdateWithAppcastItem:(nullable SUAppcastItem *)updateItem preventsAutoupdate:(BOOL)preventsAutoupdate
 {
     [self notifyFoundValidUpdateWithAppcastItem:updateItem preventsAutoupdate:preventsAutoupdate systemDomain:nil];
 }
@@ -187,7 +187,7 @@
         } else {
             localizedDescription = SULocalizedString(@"Update Error!", nil);
             recoverySuggestion = SULocalizedString(@"No valid update information could be loaded.", nil);
-            recoveryOption = SULocalizedString(@"Cancel Update", nil);
+            recoveryOption = @"Cancel Update";
         }
         
         NSError *notFoundError =

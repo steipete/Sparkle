@@ -204,6 +204,7 @@ static NSString * const UPDATED_VERSION = @"2.0";
 
 - (void)signApplicationIfRequiredAtPath:(NSString *)applicationPath completion:(void (^)(void))completionBlock
 {
+#ifdef DEBUG
     // This is unfortunately necessary for testing sandboxing
     NSXPCConnection *codeSignConnection = [[NSXPCConnection alloc] initWithServiceName:@"org.sparkle-project.TestAppHelper"];
     codeSignConnection.remoteObjectInterface = [NSXPCInterface interfaceWithProtocol:@protocol(TestAppHelperProtocol)];
@@ -215,6 +216,10 @@ static NSString * const UPDATED_VERSION = @"2.0";
         
         completionBlock();
     }];
+#else
+    (void)(applicationPath); // ignore unused warning
+    completionBlock();
+#endif
 }
 
 - (void)applicationWillTerminate:(NSNotification * __unused)notification

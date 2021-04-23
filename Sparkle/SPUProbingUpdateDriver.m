@@ -60,11 +60,6 @@
     [self abortUpdate];
 }
 
-- (BOOL)showingUpdate
-{
-    return NO;
-}
-
 - (void)basicDriverIsRequestingAbortUpdateWithError:(nullable NSError *)error
 {
     [self abortUpdateWithError:error];

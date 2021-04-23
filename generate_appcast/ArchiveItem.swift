@@ -161,7 +161,7 @@ class ArchiveItem: CustomStringConvertible {
         return releaseNotes
     }
 
-    private func getReleaseNotesAsHTMLFragment(_ path: URL) -> String?  {
+    private func getReleaseNotesAsHTMLFragment(_ path: URL) -> String? {
         if let html = try? String(contentsOf: path) {
             if html.utf8.count < 1000 &&
                 !html.localizedCaseInsensitiveContains("<!DOCTYPE") &&
@@ -189,7 +189,7 @@ class ArchiveItem: CustomStringConvertible {
         }
         return self.releaseNoteURL(for: path.lastPathComponent)
     }
-    
+
     func releaseNoteURL(for unescapedFilename: String) -> URL? {
         guard let escapedFilename = unescapedFilename.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
             return nil
@@ -215,8 +215,7 @@ class ArchiveItem: CustomStringConvertible {
                 .appendingPathExtension(languageCode)
                 .appendingPathExtension("html")
             if (try? localizedReleaseNoteURL.checkResourceIsReachable()) ?? false,
-               let localizedReleaseNoteRemoteURL = self.releaseNoteURL(for: localizedReleaseNoteURL.lastPathComponent)
-            {
+               let localizedReleaseNoteRemoteURL = self.releaseNoteURL(for: localizedReleaseNoteURL.lastPathComponent) {
                 localizedReleaseNotes.append((languageCode, localizedReleaseNoteRemoteURL))
             }
         }

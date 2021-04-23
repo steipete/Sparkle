@@ -91,7 +91,7 @@ static NSMutableDictionary *sharedUpdaters = nil;
 // This will be used when the updater is instantiated in a nib such as MainMenu
 - (instancetype)init
 {
-    SULog(SULogLevelDefault, @"DEPRECATION: SUUpdater is deprecated in Sparkle 2 but functional for transitional purposes. Please migrate to SPUStandardUpdaterController as a nib instantiated replacement, or SPUUpdater.");
+    SULog(SULogLevelDefault, @"DEPRECATION: SUUpdater is now deprecated. Please use SPUStandardUpdaterController as a nib instantiated replacement, or SPUUpdater.");
     return [self initForBundle:[NSBundle mainBundle]];
 }
 
@@ -212,7 +212,7 @@ static NSMutableDictionary *sharedUpdaters = nil;
 {
     // This is not quite true -- we may be able to check / resume an update if one is in progress
     // But this is a close enough approximation for 1.x updater API
-    return self.updater.sessionInProgress;
+    return !self.updater.canCheckForUpdates;
 }
 
 // Not implemented properly at the moment - leaning towards it not be in the future

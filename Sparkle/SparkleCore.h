@@ -29,6 +29,7 @@
 #import "SPUUpdatePermissionRequest.h"
 #import "SUUpdatePermissionResponse.h"
 #import "SPUUserDriver.h"
+#import "SPUUserDriverCoreComponent.h"
 #import "SPUDownloadData.h"
 
 #pragma clang diagnostic pop

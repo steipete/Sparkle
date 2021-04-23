@@ -30,10 +30,5 @@
 	<string>http://localhost:1337/sparkletestcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>eRFPLZuNM6m8bltmtpPX4fzKbufI1z6rKJHtgIIsllk=</string>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
 </dict>
 </plist>
