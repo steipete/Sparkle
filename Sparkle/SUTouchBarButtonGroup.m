@@ -28,6 +28,17 @@
     NSMutableArray<NSLayoutConstraint *> *constraints = [NSMutableArray array];
     NSMutableArray<NSButton *> *buttonCopies = [NSMutableArray arrayWithCapacity:buttons.count];
 
+    // Skip This Version is hidden for a resumable update. That action calls
+    // abort() in that mode, so a hidden window button must not be copied onto
+    // the Touch Bar.
+    NSMutableArray<NSButton *> *visibleButtons = [NSMutableArray arrayWithCapacity:buttons.count];
+    for (NSButton *button in buttons) {
+        if (!button.hidden) {
+            [visibleButtons addObject:button];
+        }
+    }
+    buttons = visibleButtons;
+
     for (NSUInteger i = 0; i < buttons.count; i++) {
         NSButton *button = [buttons objectAtIndex:i];
 #pragma clang diagnostic push
